@@ -1,6 +1,6 @@
 /******************************************************************************
  * Icinga 2                                                                   *
- * Copyright (C) 2012-2017 Icinga Development Team (https://www.icinga.com/)  *
+ * Copyright (C) 2012-2016 Icinga Development Team (https://www.icinga.org/)  *
  *                                                                            *
  * This program is free software; you can redistribute it and/or              *
  * modify it under the terms of the GNU General Public License                *
@@ -22,6 +22,7 @@
 #include "base/debug.hpp"
 #include "base/primitivetype.hpp"
 #include "base/configwriter.hpp"
+#include <boost/foreach.hpp>
 
 using namespace icinga;
 
@@ -37,7 +38,7 @@ Value Dictionary::Get(const String& key) const
 {
 	ObjectLock olock(this);
 
-	auto it = m_Data.find(key);
+	std::map<String, Value>::const_iterator it = m_Data.find(key);
 
 	if (it == m_Data.end())
 		return Empty;
@@ -45,6 +46,14 @@ Value Dictionary::Get(const String& key) const
 	return it->second;
 }
 
+Value *Dictionary::GetPtr(String& key)
+{
+	ObjectLock olock(this);
+	std::map<String, Value>::const_iterator it = m_Data.find(key);
+	if (it == m_Data.end())
+		return Empty; 
+	return &it->second;
+}
 
 /**
  * Retrieves a value from a dictionary.
@@ -57,7 +66,7 @@ bool Dictionary::Get(const String& key, Value *result) const
 {
 	ObjectLock olock(this);
 
-	auto it = m_Data.find(key);
+	std::map<String, Value>::const_iterator it = m_Data.find(key);
 
 	if (it == m_Data.end())
 		return false;
@@ -79,18 +88,6 @@ void Dictionary::Set(const String& key, const Value& value)
 	m_Data[key] = value;
 }
 
-/**
- * Sets a value in the dictionary.
- *
- * @param key The key.
- * @param value The value.
- */
-void Dictionary::Set(const String& key, Value&& value)
-{
-	ObjectLock olock(this);
-
-	m_Data[key] = std::move(value);
-}
 
 /**
  * Returns the number of elements in the dictionary.
@@ -149,7 +146,7 @@ void Dictionary::CopyTo(const Dictionary::Ptr& dest) const
 {
 	ObjectLock olock(this);
 
-	for (const Dictionary::Pair& kv : m_Data) {
+	BOOST_FOREACH(const Dictionary::Pair& kv, m_Data) {
 		dest->Set(kv.first, kv.second);
 	}
 }
@@ -177,7 +174,7 @@ Object::Ptr Dictionary::Clone(void) const
 	Dictionary::Ptr dict = new Dictionary();
 
 	ObjectLock olock(this);
-	for (const Dictionary::Pair& kv : m_Data) {
+	BOOST_FOREACH(const Dictionary::Pair& kv, m_Data) {
 		dict->Set(kv.first, kv.second.Clone());
 	}
 
@@ -196,7 +193,7 @@ std::vector<String> Dictionary::GetKeys(void) const
 
 	std::vector<String> keys;
 
-	for (const Dictionary::Pair& kv : m_Data) {
+	BOOST_FOREACH(const Dictionary::Pair& kv, m_Data) {
 		keys.push_back(kv.first);
 	}
 
@@ -210,7 +207,7 @@ String Dictionary::ToString(void) const
 	return msgbuf.str();
 }
 
-Value Dictionary::GetFieldByName(const String& field, bool, const DebugInfo& debugInfo) const
+Value Dictionary::GetFieldByName(const String& field, bool sandboxed, const DebugInfo& debugInfo) const
 {
 	Value value;
 
@@ -220,7 +217,7 @@ Value Dictionary::GetFieldByName(const String& field, bool, const DebugInfo& deb
 		return GetPrototypeField(const_cast<Dictionary *>(this), field, false, debugInfo);
 }
 
-void Dictionary::SetFieldByName(const String& field, const Value& value, const DebugInfo&)
+void Dictionary::SetFieldByName(const String& field, const Value& value, const DebugInfo& debugInfo)
 {
 	Set(field, value);
 }
@@ -228,9 +225,4 @@ void Dictionary::SetFieldByName(const String& field, const Value& value, const D
 bool Dictionary::HasOwnField(const String& field) const
 {
 	return Contains(field);
-}
-
-bool Dictionary::GetOwnField(const String& field, Value *result) const
-{
-	return Get(field, result);
 }
