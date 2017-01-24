@@ -33,9 +33,9 @@ class LogstashWriter : ConfigObject
 	[config] String port {
 		default {{{ return "9201"; }}}
 	};
-	
-	[config] bool defaultProtocol {
-		default {{{ return "true"; }}}
+
+	[config] String socket_type {
+		default {{{ return "udp"; }}}
 	};
 
 	[config] String source {
